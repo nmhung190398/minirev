@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 #include <uthash.h>
 
@@ -378,7 +379,7 @@ handle_control_read(event_source_t** sources, event_source_t* source, int efd)
         cursor += -source->mplength;
 
         source->target = source->mpheader[0] + (source->mpheader[1] << 8);
-        source->mplength = source->mpheader[2] + (source->mpheader[3] << 8);
+        source->mplength = (source->mpheader[2] < 0 ? source->mpheader[2] + 256 : source->mpheader[2]) + (source->mpheader[3] << 8);
 
         D("%6d header %d %d\n", source->fd, source->target, source->mplength);
 
@@ -520,7 +521,8 @@ handle_forward_read(event_source_t** sources, event_source_t* source)
 
   for (;;)
   {
-    count = read(source->fd, buf + HEADER_SIZE, sizeof(buf));
+    int remaining_space = sizeof(buf) - HEADER_SIZE;
+    count = read(source->fd, buf + HEADER_SIZE, remaining_space);
 
     if (count < 0)
     {
